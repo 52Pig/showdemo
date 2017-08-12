@@ -1,0 +1,258 @@
+
+
+
+
+
+
+
+
+
+
+输入:source("ABC.R")
+输出(文本):sink("bc")
+输出(图形):pdf("a.pdf") | jpeg("b.jpeg")
+
+
+包：R函数、数据、预编译代码以一种定义完善的格式组成的集合。
+存储包的目录成为库(library)
+.libPaths()显示库所在位置
+library()显示库中的包
+.packages(all.availabel=T)显示所有包
+
+============================
+数据结构：
+
+向量
+矩阵
+数组
+数据框
+列表
+......
+
+
+-----向量------
+使用函数c()创建向量
+同一向量中无法存放不同类型数据。
+a <- c(1,2,3)
+b <- c("A","B","C")
+c <- c(1:20)
+a[1],a[1:3]
+
+b <- c(1 : 20)
+b就是1到20
+
+----矩阵---
+二维数组，只能存放同一类型
+
+my_matrix <- matrix(vector,nrow=行数,ncol=列数,
+byrow=是否按行填充，dimnames=list(行名，列名))
+y <- matrix(1:20 ,nrow=5 ,ncol=4) byrow默认为FALSE
+y <- matrix(1:20,nrow=5,ncol=4,byrow=TRUE)
+y[1,] y[,1] y[2,3] y[15]
+
+y[行，列]
+---数组---
+与矩阵类似，维度可以大于2
+myarray <- array(vector,dimensions,dimnames)
+dim1 <- c("A1","A2")
+dim2 <- c("B1","B2","B3")
+dim3 <- c("C1","C2","C3","C4")
+z <- array(1:24,c(2,3,4),dimnames=list(dim1,dim2,dim3))
+z[1,2,3]
+
+1到24要被填充到向量是（2,3,4）的3维空间当中
+
+---数据框---
+
+矩阵的拓展，可以包括不同的数据类型
+
+mydata <- data.frame(col1,col2,col3)
+col1,col2,col3可以为不同类型的向量
+patientID <- c(1,2,3,4)
+age <- c(25,34,28,52)
+diabetes <- c("Type1","Type2","Type1","Type1")
+patientdata <- data.frame(patientID,age,diabetes,status)
+patientdata[1:2] patientdata[c("diabetes","status")] patientdata$age
+
+table(patientdata$diabetes,patientdata$status)
+
+
+数据框里的函数
+
+attach
+detach
+with：当有相同的变量名时，可防止发生冲突
+
+---因子---
+因子 = 名义型 + 有序型
+
+diabetes <- c("Type1","Type2","Type1","Type1") d<- factor(diabetes)
+
+status <- c("Type1","Type2","Type1","Type1")
+
+status <- c("Poor","Improved","Excellent","Poor")
+status <- factor(status,ordered=TRUE)
+
+---列表---
+l <- list(obj1,obj2,...)
+l <- list(name1=obj1,name2=obj2,...)
+g <- "This is a list"
+a <- c(1,2,3,4)
+b <- c("AA","BB","CC")
+
+访问列表b[[2]]或者b$2
+
+
+===========加载数据集
+data <- read.table(file,header=logical_value,sep="delimiter",row.name="name")
+contents <- read.table("/Users/chenchao/job/ChinaHadoop-Spark/SparkR/data",sep=" 	")
+
+
+
+======画图
+students <- c(1,2,3,4,5)
+grades <- c(100,90,60,80,85)
+plot(students,grades,type="b")
+plot(students,grades,type="b",col="red",
+main="Grades Graph",sub="This is class A",
+xlab="students id",ylab="grades",xlim=c(1,5),ylim=c(0,100))
+基准线abline(h=c(60),col="blue")
+
+type="b"代表有实线
+
+=======函数====================
+定义：function_name <- function(arg1,arg2,...){expression}
+调用：function_name(arg1,arg2,...)
+print <- function(content){cat(content)}
+xor <- function(x,y){(x|y)&!(x&y)}
+xor异火函数
+
+
+=============SparkR==================
+Spark + R =SparkR
+RDD + R = RRDD
+
+R frontend for Spark
+SparkR Github
+核心类RDD.R
+
+函数全定义在RDD.R当中
+
+要求：
+Spark version >=1.1.0
+Scala version >=2.10.x
+依赖的R包:rJava与testthat(单元测试)
+
+===========安装==========
+方式一
+直接从github安装
+library(devtools)
+install_github("",subdir="pkg")
+
+方式二：
+从源代码build：./install-dev.sh
+
+指定hadoop版本
+SPARK_HADOP_VERSION=2.x.x ./install-dev.sh
+默认使用sbt，如果使用maven：USE_MAVEN=1 ./install-dev.sh
+
+====================启动方式也有两种：
+如果是直接从源码编译：
+直接./sparkR  可指定master MASTER=<Spark master URL> ./sparkR
+SPARK_MEM=1g ./sparkR
+
+如果直接从github安装:
+library(SparkR)
+sc <- sparkR.init(master="local")
+sc <- sparkR.init(master="spark://<master>:7077")
+sparkEnvir=list(spark.executor.memory="1g")
+
+========
+wordcount
+lapply是把每一个word应用成keyvalue形式
+str(1)是num类型
+str(1L)是int类型
+========================
+原理：
+
+R语言本地提交SparkContext，通过JNI调用
+Java Spark Context 然后分发到不同的worker
+worker上存在Executor与R进行交互，每一个R都对应一个worker进程
+每次执行R代码都要启动一次后台进程，这样一会儿关一会儿起，
+资源消耗的相当厉害。也是SparkR的弊端
+目前Executor和R进程是一一对应的。
+
+
+SparkR代码非常简洁，
+============但是目前有问题，Pipelined RDD优化===================
+words <- flatMap(lines,...)
+wordCount <- lapply(words,...)
+
+
+Executor-exec-->R--->Executor-exec-->R 
+
+
+
+在spark当中，transform都是lazy information的
+而在SparkR当中，代码一会一个flatmap的话，
+会让SparkR反复启动进程去执行。
+
+
+Executor-exec-->R|R--->Executor
+上边是Pipelined RDD的图解。是将R放到一起，最后去提交给Executor
+去执行。节省了序列化反序列化时间，提高效率。
+
+
+优化的点：导入mllib，做成一个后台进程，不要反复启动。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
